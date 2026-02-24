@@ -13,6 +13,7 @@ import java.io.*;
 import java.net.*;
 import java.util.*;
 import java.util.concurrent.*;
+
 public class TcpEngine {
 
     private final int port;
@@ -59,25 +60,34 @@ public class TcpEngine {
                 System.out.println(message);
                 if (message.startsWith("PRIVATE_MSG:")) {
                     handlePrivateMessage(ip, message);
+                } else if (message.startsWith("VIDEO_INVITE:")) {
+                    // Format: VIDEO_INVITE:TargetIP
+                    handleVideoInvite(ip, message);
+                } else if (message.startsWith("VIDEO_RESPONSE:")) {
+                    // Format: VIDEO_RESPONSE:TargetIP:ACCEPT or REJECT
+                    handleVideoResponse(ip, message);
                 } else {
                     broadcast("[" + ip + "]: " + message);
                 }
             }
-        } catch (IOException e) { /* Disconnect handled in finally */ }
-        finally {
+        } catch (IOException e) { /* Disconnect handled in finally */ } finally {
             clientMap.remove(ip);
             listener.onUserDisconnect(ip);
             broadcastUserList();
-            try { socket.close(); } catch (IOException e) { e.printStackTrace(); }
+            try {
+                socket.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
     }
 
     private void handlePrivateMessage(String senderIp, String rawMessage) {
         String[] parts = rawMessage.split(":", 4);
         if (parts.length == 4) {
-            String targetIp = parts[1]+":"+parts[2];
+            String targetIp = parts[1] + ":" + parts[2];
             String msgBody = parts[3];
-            System.out.println("targetIp: "+targetIp +" msgBody: "+msgBody);
+            System.out.println("targetIp: " + targetIp + " msgBody: " + msgBody);
             String time = getTimestamp();
             PrintWriter target = clientMap.get(targetIp);
             if (target != null) {
@@ -87,9 +97,30 @@ public class TcpEngine {
         }
     }
 
+    private void handleVideoInvite(String senderIp, String rawMessage) {
+        String targetIp = rawMessage.split(":")[1];
+        PrintWriter targetWriter = clientMap.get(targetIp);
+        if (targetWriter != null) {
+            // Tell the target that sender wants to call
+            targetWriter.println("VIDEO_PROMPT:" + senderIp);
+        }
+    }
+
+    private void handleVideoResponse(String responderIp, String rawMessage) {
+        String[] parts = rawMessage.split(":");
+        String targetIp = parts[1];
+        String status = parts[2]; // "ACCEPT" or "REJECT"
+
+        PrintWriter targetWriter = clientMap.get(targetIp);
+        if (targetWriter != null) {
+            targetWriter.println("VIDEO_RESULT:" + responderIp + ":" + status);
+        }
+    }
     private void broadcastUserList() {
         String list = "USER_LIST:" + String.join(",", clientMap.keySet());
-        for (PrintWriter writer : clientMap.values()) { writer.println(list); }
+        for (PrintWriter writer : clientMap.values()) {
+            writer.println(list);
+        }
     }
 
     public void broadcast(String message) {
@@ -103,6 +134,10 @@ public class TcpEngine {
 
     public void stop() {
         running = false;
-        try { if (serverSocket != null) serverSocket.close(); } catch (IOException e) { e.printStackTrace(); }
+        try {
+            if (serverSocket != null) serverSocket.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 }
