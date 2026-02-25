@@ -25,6 +25,7 @@
             <artifactId>javafx-fxml</artifactId>
             <version>17.0.14</version>
         </dependency>
+
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
@@ -59,10 +60,10 @@
                 <groupId>org.openjfx</groupId>
                 <artifactId>javafx-maven-plugin</artifactId>
                 <version>0.0.8</version>
-                <executions>
-                    <execution>
+              <!--  <executions>
+                    <execution>-->
                         <!-- Default configuration for running with: mvn clean javafx:run -->
-                        <id>default-cli</id>
+<!--                        <id>default-cli</id>-->
                         <configuration>
                             <mainClass>
                                 com.assignment.networkingassignment/com.assignment.networkingassignment.MainApp
@@ -74,9 +75,10 @@
                             <stripDebug>true</stripDebug>
                             <noHeaderFiles>true</noHeaderFiles>
                         </configuration>
-                    </execution>
-                </executions>
+             <!--       </execution>
+                </executions>-->
             </plugin>
+
         </plugins>
     </build>
 </project>
