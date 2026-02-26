@@ -1,6 +1,8 @@
 package com.assignment.networkingassignment.networking;
 
 import com.assignment.networkingassignment.ServerListener;
+import com.assignment.networkingassignment.model.ClientInfo;
+
 import java.io.*;
 import java.net.*;
 import java.time.LocalTime;
@@ -12,7 +14,7 @@ public class TcpEngine {
 
     private final int port;
     private final ServerListener listener;
-    private final Map<String, PrintWriter> clientMap = new ConcurrentHashMap<>();
+    private final Map<String, ClientInfo> clientMap = new ConcurrentHashMap<>();
     private final ExecutorService pool = Executors.newFixedThreadPool(10, r -> {
         Thread t = new Thread(r);
         t.setDaemon(true); // Ensures threads don't block JVM shutdown
@@ -48,13 +50,9 @@ public class TcpEngine {
         try (BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
              PrintWriter out = new PrintWriter(socket.getOutputStream(), true)) {
 
-            clientMap.put(ipIdentifier, out);
-            listener.onUserConnect(ipIdentifier);
-            broadcastUserList();
-
             String message;
             while (running && (message = in.readLine()) != null) {
-                processIncomingData(ipIdentifier, message);
+                processIncomingData(ipIdentifier,out, message);
             }
 
         } catch (IOException e) {
@@ -64,11 +62,24 @@ public class TcpEngine {
         }
     }
 
-    private void processIncomingData(String senderIp, String message) {
-        // Logs for debugging
-        System.out.println("Received from [" + senderIp + "]: " + message);
+    private ClientInfo getClientInfo(String ipIdentifier, PrintWriter out, String username) {
+        return new ClientInfo(
+                username,
+                ipIdentifier.split(":")[0],
+                Integer.parseInt(ipIdentifier.split(":")[1]),
+                out
+        );
+    }
 
-        if (message.startsWith("PRIVATE_MSG:")) {
+    private void processIncomingData(String senderIp, PrintWriter out, String message) {
+        // Logs for debugging
+        System.out.println("sender ["+senderIp+"], message["+ message+"]");
+        if (message.startsWith("LOGIN:")) {
+            ClientInfo clientInfo = getClientInfo(senderIp,out, message.split(":")[1]);
+            clientMap.put(senderIp, clientInfo);
+            listener.onUserConnect(senderIp);
+            broadcastUserList();
+        }else if (message.startsWith("PRIVATE_MSG:")) {
             handlePrivateMessage(senderIp, message);
         } else if (message.startsWith("VIDEO_INVITE:")) {
             handleVideoInvite(senderIp, message);
@@ -95,8 +106,15 @@ public class TcpEngine {
 
     private void handleVideoInvite(String senderIp, String rawMessage) {
         // Format: VIDEO_INVITE:TargetIP:Port
-        String targetIp = extractTargetIp(rawMessage);
+        String targetIp = extractIpAddress(rawMessage);
         sendMessageTo(targetIp, "VIDEO_PROMPT:" + senderIp);
+    }
+
+    private String extractIpAddress(String rawMessage) {
+        String userName= rawMessage.split(":")[1];
+        return clientMap.values().stream()
+                .filter(clientInfo -> clientInfo.userName().equals(userName))
+                .findFirst().get().ip();
     }
 
     private void handleVideoResponse(String responderIp, String rawMessage) {
@@ -110,34 +128,27 @@ public class TcpEngine {
     }
 
     private void handleVideoHangup(String senderIp, String rawMessage) {
-        String targetIp = extractTargetIp(rawMessage);
+        String targetIp = extractIpAddress(rawMessage);
         sendMessageTo(targetIp, "VIDEO_TERMINATED");
     }
 
     private void sendMessageTo(String targetIp, String message) {
-        PrintWriter writer = clientMap.get(targetIp);
-        if (writer != null) {
-            writer.println(message);
+         ClientInfo clientInfo = clientMap.get(targetIp);
+        if (clientInfo != null) {
+            clientInfo.writer().println(message);
         }
     }
 
-    private String extractTargetIp(String rawMessage) {
-        // Helper to handle the "Prefix:IP:Port" structure
-        String[] parts = rawMessage.split(":");
-        if (parts.length >= 3) {
-            return parts[1] + ":" + parts[2];
-        }
-        return "";
-    }
+
 
     private void broadcastUserList() {
-        String list = "USER_LIST:" + String.join(",", clientMap.keySet());
-        clientMap.values().forEach(writer -> writer.println(list));
+        String list = "USER_LIST:" + String.join(",", clientMap.values().stream().map(ClientInfo::userName).toList());
+        clientMap.values().forEach(clientInfo -> clientInfo.writer().println(list));
     }
 
     public void broadcast(String message) {
         String formatted = "[" + getTimestamp() + "] " + message;
-        clientMap.values().forEach(writer -> writer.println(formatted));
+        clientMap.values().forEach(clientInfo -> clientInfo.writer().println(formatted));
     }
 
     private String getTimestamp() {
