@@ -94,10 +94,11 @@ public class TcpEngine {
 
     private void handlePrivateMessage(String senderIp, String rawMessage) {
         // Format: PRIVATE_MSG:TargetIP:Port:ActualMessage
-        String[] parts = rawMessage.split(":", 4);
-        if (parts.length >= 4) {
-            String targetIp = parts[1] + ":" + parts[2];
-            String content = parts[3];
+        String[] parts = rawMessage.split(":", 3);
+        if (parts.length >= 3) {
+            String targetIp = extractIpAddress(rawMessage);
+                    //+ ":" + parts[2];
+            String content = parts[2];
 
             sendMessageTo(targetIp, "[" + getTimestamp() + "] [Whisper from " + senderIp + "]: " + content);
             sendMessageTo(senderIp, "[" + getTimestamp() + "] [Whisper to " + targetIp + "]: " + content);
