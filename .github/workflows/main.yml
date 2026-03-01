@@ -37,7 +37,7 @@ jobs:
       if: matrix.os == 'windows-latest'
       run: |
         jpackage --type exe --name "NetworkingChat" `
-        --input target/libs --main-jar networking-assignment-1.0.jar `
+        --input target/libs --main-jar networking-assignment-1.0-SNAPSHOT.jar `
         --main-class com.assignment.networkingassignment.MainApp `
         --win-shortcut --win-menu --dest dist/
 
@@ -47,7 +47,7 @@ jobs:
       run: |
         sudo apt-get install -y fakeroot
         jpackage --type deb --name "networking-chat" \
-        --input target/libs --main-jar networking-assignment-1.0.jar \
+        --input target/libs --main-jar networking-assignment-1.0-SNAPSHOT.jar \
         --main-class com.assignment.networkingassignment.MainApp \
         --linux-shortcut --dest dist/
 
