@@ -112,9 +112,10 @@ public class TcpEngine {
 
     private String extractIpAddress(String rawMessage) {
         String userName= rawMessage.split(":")[1];
-        return clientMap.values().stream()
+        Optional<ClientInfo> clientInfoOptional = clientMap.values().stream()
                 .filter(clientInfo -> clientInfo.userName().equals(userName))
-                .findFirst().get().ip();
+                .findFirst();
+        return clientInfoOptional.map(ClientInfo::getFullAddress).orElse("");
     }
 
     private void handleVideoResponse(String responderIp, String rawMessage) {
