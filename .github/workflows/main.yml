@@ -29,8 +29,12 @@ jobs:
     - name: Build with Maven
       run: mvn clean package
 
-    - name: Copy Dependencies
-      run: mvn dependency:copy-dependencies -DoutputDirectory=target/libs
+    - name: Build and Prepare Libs
+      run: |
+        mvn clean package
+        mvn dependency:copy-dependencies -DoutputDirectory=target/libs
+        # Move the main jar into the input folder so jpackage finds it
+        cp target/networking-assignment-1.0-SNAPSHOT.jar target/libs/
 
     # --- WINDOWS BUILD (.exe) ---
     - name: Create Windows EXE
@@ -50,6 +54,7 @@ jobs:
         --input target/libs --main-jar networking-assignment-1.0-SNAPSHOT.jar \
         --main-class com.assignment.networkingassignment.MainApp \
         --linux-shortcut --dest dist/
+
 
     - name: Upload Artifacts
       uses: actions/upload-artifact@v4
